@@ -201,6 +201,16 @@ func (s *mcpServer) callTool(name string, rawArgs json.RawMessage) (string, bool
 		json.Unmarshal(rawArgs, &args)
 	}
 
+	// The schemas declare which arguments are required, but nothing enforced
+	// it: a missing id was interpolated into the URL anyway, producing
+	// /api/room//resolve and an error about the endpoint rather than about the
+	// argument. Not every MCP client validates against the schema before
+	// sending, so the server cannot assume it arrives complete.
+	if missing := missingRequired(name, args); len(missing) > 0 {
+		return fmt.Sprintf("Missing required argument(s): %s. Call tools/list for this tool's schema.",
+			strings.Join(missing, ", ")), true
+	}
+
 	// Reading tools do not create an identity as a side effect. Docs go
 	// further and need no daemon at all — they are compiled into the binary.
 	if name == "succubus_docs" {
@@ -601,6 +611,50 @@ func wrapErr(err error) (string, bool) {
 		return daemonDownMsg, false
 	}
 	return "succubus: " + err.Error(), true
+}
+
+// missingRequired reports which of a tool's required arguments were absent or
+// empty, checked against the very schemas the server publishes so the two can
+// never drift apart.
+//
+// Empty counts as missing on purpose. An empty string id is not a value a
+// caller meant to send — it is a variable that turned out blank — and passing
+// it on produces a URL like /api/room//resolve, whose error names the wrong
+// problem entirely.
+func missingRequired(tool string, args map[string]any) []string {
+	for _, t := range toolSchemas() {
+		if t["name"] != tool {
+			continue
+		}
+		schema, ok := t["inputSchema"].(map[string]any)
+		if !ok {
+			return nil
+		}
+		required, ok := schema["required"].([]string)
+		if !ok {
+			return nil
+		}
+		var missing []string
+		for _, key := range required {
+			v, present := args[key]
+			if !present || v == nil {
+				missing = append(missing, key)
+				continue
+			}
+			switch typed := v.(type) {
+			case string:
+				if strings.TrimSpace(typed) == "" {
+					missing = append(missing, key)
+				}
+			case []any:
+				if len(typed) == 0 {
+					missing = append(missing, key)
+				}
+			}
+		}
+		return missing
+	}
+	return nil
 }
 
 // obj is a small helper for building JSON Schema fragments.

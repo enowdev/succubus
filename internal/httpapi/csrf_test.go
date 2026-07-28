@@ -167,3 +167,62 @@ func TestDecodeRequiresJSONContentType(t *testing.T) {
 		t.Errorf("decode refused a body with no Content-Type: %v", err)
 	}
 }
+
+// TestUnmatchedAPIPathsAnswerInJSON guards a failure that hides its own cause.
+//
+// The SPA is mounted at "/", so any /api path that matches no route fell
+// through to it: the client got 200 and an HTML page, tried to parse it as
+// JSON, and reported `invalid character '<' looking for beginning of value` —
+// which says nothing about the endpoint being wrong. It surfaced as an MCP
+// tool failure, and finding the real cause took far longer than it should.
+//
+// A path with an empty id (/api/plans/) is the common way to hit this, since
+// it happens whenever a caller interpolates a variable that turned out empty.
+func TestUnmatchedAPIPathsAnswerInJSON(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.MountDevNotice("http://localhost:5273")
+
+	for _, path := range []string{
+		"/api/",
+		"/api/plans/",
+		"/api/tasks/",
+		"/api/nosuchendpoint",
+		"/api/projects/p1/nosuchthing",
+	} {
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		w := httptest.NewRecorder()
+		srv.ServeHTTP(w, r)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("%s: status %d, want 404", path, w.Code)
+		}
+		if ct := w.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+			t.Errorf("%s: Content-Type %q, want JSON — an API client cannot parse HTML", path, ct)
+		}
+		if body := w.Body.String(); strings.Contains(body, "<") {
+			t.Errorf("%s: body looks like markup: %.60s", path, body)
+		}
+	}
+}
+
+// TestRealEndpointsAreUnaffected: the 404 rule must not shadow a route that
+// does exist.
+func TestRealEndpointsAreUnaffected(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.MountDevNotice("http://localhost:5273")
+
+	r := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	w := httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	if w.Code == http.StatusNotFound {
+		t.Error("/api/health was swallowed by the unmatched-path rule")
+	}
+
+	// And a page route still gets the SPA, not a JSON error.
+	r = httptest.NewRequest(http.MethodGet, "/", nil)
+	w = httptest.NewRecorder()
+	srv.ServeHTTP(w, r)
+	if w.Code == http.StatusNotFound {
+		t.Error("the dashboard root now 404s")
+	}
+}

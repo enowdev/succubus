@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"io/fs"
 	"net/http"
 	"path"
@@ -14,6 +15,19 @@ func (s *Server) MountSPA(dist fs.FS) {
 	fileServer := http.FileServerFS(dist)
 
 	s.Mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Anything under /api that reached here matched no route: a typo, a
+		// removed endpoint, or a path with an empty id like /api/plans/.
+		//
+		// It must not be answered with the SPA shell. A client gets 200 and
+		// HTML, tries to parse it as JSON, and reports `invalid character '<'`
+		// — an error that says nothing about the endpoint being wrong. An MCP
+		// tool call surfaced exactly that, and the real cause took longer to
+		// find than it should have.
+		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+			writeErr(w, http.StatusNotFound, errors.New("no such endpoint"))
+			return
+		}
+
 		p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if p == "" || p == "." {
 			p = "index.html"
@@ -42,6 +56,12 @@ func (s *Server) MountSPA(dist fs.FS) {
 // pointing the developer at the Vite dev server instead of 404ing.
 func (s *Server) MountDevNotice(devURL string) {
 	s.Mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Same rule as the embedded SPA: an unmatched API path answers in JSON,
+		// so a client never has to guess whether it hit an endpoint or a page.
+		if r.URL.Path == "/api" || strings.HasPrefix(r.URL.Path, "/api/") {
+			writeErr(w, http.StatusNotFound, errors.New("no such endpoint"))
+			return
+		}
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
