@@ -1,0 +1,2060 @@
+@import "./styles/tokens.css";
+
+/* ===== App shell =====
+   The page never scrolls: html/body are locked to the viewport, the sidebar
+   scrolls its own lists, and .content is the only scroll owner. */
+
+.app {
+  display: grid;
+  grid-template-columns: 236px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  min-height: 0;
+}
+
+.content {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Flex children shrink by default, so a tall panel gets squeezed to fit the
+   column and then clipped by its own overflow:hidden — the scrollbar never
+   appears because .content believes everything fits. Opting every direct child
+   out of shrinking is what makes .content actually scroll.
+   .docs-layout is the deliberate exception: it fills the height and scrolls
+   inside itself. */
+.content > *:not(.docs-layout) {
+  flex-shrink: 0;
+}
+
+/* Docs hand scrolling to the reading pane instead, so the section nav and the
+   contents rail stay put while you read. Without this the page itself scrolls
+   and .docs-scroll never gets a bounded height to scroll within. */
+.content.content-docs {
+  overflow: hidden;
+}
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 100vh;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* ===== Sidebar ===== */
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 4px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 14px 8px;
+}
+/* The mark is a transparent PNG, so it needs no plate behind it — it sits
+   directly on the sidebar in both themes. */
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+  display: block;
+}
+.brand-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: 14px;
+}
+.brand-name span {
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.nav-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  padding: 14px 8px 6px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-label .count {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  /* Transparent border reserves the space .active fills, so nothing shifts. */
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  flex: none;
+}
+.nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+.nav-item svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.nav-item .badge {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.nav-item.active .badge {
+  color: var(--text-dim);
+}
+.nav-item .badge.alert,
+.nav-item.active .badge.alert,
+.row-item .count.alert {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* Project and agent rows share one visual language: dot, name, right-aligned
+   count. Unlike .nav-item they never take a border when active. */
+.side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.side-list.grow {
+  flex: 1;
+}
+.side-empty {
+  padding: 8px 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.row-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  flex: none;
+}
+.row-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.row-item.active {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.row-item .row-name {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-item .count {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  flex: none;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ===== Project tree =====
+   Agents nest under the project they belong to. The caret is a separate hit
+   target so expanding does not also switch project. */
+
+.tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.tree-caret {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  margin-left: -2px;
+  color: var(--text-faint);
+  cursor: pointer;
+  flex: none;
+  border-radius: 3px;
+  transition:
+    transform 0.12s,
+    color 0.1s;
+}
+.tree-caret:hover {
+  color: var(--text);
+}
+.tree-caret.open {
+  transform: rotate(90deg);
+}
+
+.tree-icon {
+  color: var(--text-faint);
+  flex: none;
+}
+.row-item.active .tree-icon,
+.row-item:hover .tree-icon {
+  color: var(--text-dim);
+}
+
+/* The guide rail lines agent rows up under their project's caret. */
+.tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px 15px;
+  padding-left: 9px;
+  border-left: 1px solid var(--border);
+}
+
+.tree-agent {
+  padding: 5px 8px;
+}
+.tree-agent .row-name {
+  font-size: 12px;
+}
+.tree-agent .count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Row actions stay hidden until the row is hovered — a delete button visible
+   at all times invites a mis-click on something you cannot undo. */
+.row-action {
+  display: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color 0.1s;
+}
+.row-item:hover .row-action,
+.row-action:focus-visible {
+  display: grid;
+}
+.row-action:hover {
+  color: var(--crit);
+}
+/* The count already claims the auto margin, so the action sits beside it. */
+.row-item .count + .row-action {
+  margin-left: 4px;
+}
+
+.tree-empty {
+  padding: 4px 8px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-style: italic;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* ===== Topbar ===== */
+
+.topbar {
+  height: 52px;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 22px;
+  background: var(--bg);
+  z-index: 5;
+}
+.crumb {
+  color: var(--text-faint);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.crumb b {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crumb .sep {
+  margin: 0 8px;
+  color: var(--text-faint);
+  flex: none;
+}
+.crumb .hide-sm {
+  flex: none;
+}
+.topbar-spacer {
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex: none;
+  transition:
+    color 0.1s,
+    border-color 0.1s;
+}
+.icon-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.icon-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The hamburger only exists below the sidebar breakpoint. */
+.menu-btn {
+  display: none;
+}
+
+/* Connection state, unlabelled. Green is the normal case and should read as
+   ambient; amber and red are the only states worth looking at. */
+.stream-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  margin-right: 2px;
+}
+
+/* ===== Page head ===== */
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+.page-head .id {
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+.head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ===== Panels ===== */
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.panel .panel-body {
+  flex: 1;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-head h2 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.panel-head .hint {
+  color: var(--text-faint);
+  font-size: 11.5px;
+  margin-left: auto;
+}
+.panel-body {
+  padding: 15px;
+}
+.panel-body.flush {
+  padding: 0;
+}
+.panel-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 10px 2px;
+  line-height: 1.5;
+}
+
+/* ===== KPI row ===== */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.kpi {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 14px 15px;
+  min-width: 0;
+}
+.kpi.link {
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+.kpi.link:hover {
+  border-color: var(--border-strong);
+}
+.kpi .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kpi .label svg {
+  width: 13px;
+  height: 13px;
+}
+.kpi .val {
+  font-size: 25px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+  line-height: 1.1;
+}
+.kpi .val small {
+  font-size: 13px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.kpi .sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Bento grid =====
+   Rows are a fixed height and panels stretch to fill them, so a short panel
+   never leaves a hole beside a tall one. Overflow is handled inside each panel
+   body rather than by letting the panel grow. */
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.span-2 {
+  grid-column: span 2;
+}
+.span-3 {
+  grid-column: span 3;
+}
+
+/* Row heights. `auto` rows exist for panels whose content is the point
+   (a plan body, a list of notes) and which should size to fit instead. */
+.cols.rows-sm {
+  grid-auto-rows: 208px;
+}
+.cols.rows-md {
+  grid-auto-rows: 264px;
+}
+.cols.rows-auto {
+  grid-auto-rows: auto;
+}
+
+/* A panel in a fixed row owns its own scrolling. */
+.cols[class*="rows-"] .panel {
+  height: 100%;
+  min-height: 0;
+}
+.cols[class*="rows-"] .panel-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+/* Panels that opt out of the row height (long-form plans, note bodies). */
+.cols .panel.tall {
+  grid-row: span 2;
+}
+.cols .panel.self-auto {
+  height: auto;
+}
+
+/* ===== Buttons ===== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-ui);
+  white-space: nowrap;
+  transition:
+    border-color 0.1s,
+    background 0.1s;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.btn svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+.btn.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.btn.ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.btn.sm {
+  padding: 5px 9px;
+  font-size: 12px;
+}
+.btn.danger {
+  color: var(--crit);
+}
+/* Filled red, for the button that actually destroys something. */
+.btn.destructive {
+  background: var(--crit);
+  border-color: var(--crit);
+  color: #fff;
+}
+.btn.destructive:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--crit);
+  border-color: var(--crit);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===== Form controls ===== */
+
+.input,
+.textarea,
+.select-box {
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  padding: 9px 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.1s;
+}
+.input:focus,
+.textarea:focus,
+.select-box:focus {
+  border-color: var(--accent);
+}
+.textarea {
+  resize: vertical;
+  line-height: 1.6;
+  min-height: 90px;
+}
+.select-box {
+  font-family: var(--font-ui);
+  appearance: none;
+  cursor: pointer;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ===== Tags, chips, badges ===== */
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  flex: none;
+}
+.tag.good {
+  color: var(--good);
+  border-color: var(--good);
+}
+.tag.warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.tag.crit {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+.tag.accent {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.1s;
+  background: var(--bg);
+}
+.chip:hover {
+  border-color: var(--border-strong);
+}
+.chip.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* ===== Agent identity ===== */
+
+.agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.agent-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #fff;
+  flex: none;
+}
+.agent-mark.sm {
+  width: 15px;
+  height: 15px;
+  font-size: 8.5px;
+}
+.agent-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-tool {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* A live agent gets a slow halo — the one piece of motion in the UI. */
+.pulse {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(63, 185, 80, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0);
+  }
+}
+
+/* ===== Board ===== */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.board-col {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: border-color 0.1s;
+}
+.board-col.drop {
+  border-color: var(--accent);
+}
+.board-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.board-col-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+.board-col-head .count {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.board-col-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 70px;
+}
+
+.task {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 10px 11px 10px 13px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.1s;
+}
+.task:hover {
+  border-color: var(--border-strong);
+}
+.task.dragging {
+  opacity: 0.4;
+}
+/* Priority reads as a hairline on the leading edge, not a coloured card. */
+.task::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--border-strong);
+}
+.task.p1::before {
+  background: var(--crit);
+}
+.task.p3::before {
+  background: transparent;
+}
+.task-title {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.task-meta .muted {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.task-meta .flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.task-meta .flag svg {
+  width: 12px;
+  height: 12px;
+}
+.task-meta .flag.crit {
+  color: var(--crit);
+}
+
+/* ===== Lists ===== */
+
+.stat-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.stat-line:last-child {
+  border-bottom: none;
+}
+.stat-line .k {
+  color: var(--text-dim);
+  font-size: 12.5px;
+}
+.stat-line .v {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.list-row:last-child {
+  border-bottom: none;
+}
+.list-row.click {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.list-row.click:hover {
+  background: var(--surface-2);
+}
+.list-row .grow {
+  flex: 1;
+  min-width: 0;
+}
+.path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* ===== Activity feed ===== */
+
+.feed {
+  display: flex;
+  flex-direction: column;
+}
+.feed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feed-row:last-child {
+  border-bottom: none;
+}
+.feed-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-faint);
+}
+.feed-icon.good {
+  color: var(--good);
+}
+.feed-icon.warn {
+  color: var(--warn);
+}
+.feed-icon.crit {
+  color: var(--crit);
+}
+.feed-icon.accent {
+  color: var(--accent);
+}
+.feed-main {
+  flex: 1;
+  min-width: 0;
+}
+.feed-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.feed-detail {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-time {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Markdown-ish body text ===== */
+
+.prose {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+.mono-body {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* ===== Progress meter ===== */
+
+.meter-track {
+  height: 5px;
+  border-radius: 4px;
+  background: var(--score-track);
+  overflow: hidden;
+}
+.meter-track i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+.meter-track i.good {
+  background: var(--good);
+}
+
+/* ===== Empty / error / loading ===== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-faint);
+  font-size: 13px;
+  text-align: center;
+  gap: 8px;
+}
+.empty-state svg {
+  width: 28px;
+  height: 28px;
+  opacity: 0.4;
+}
+.empty-state .empty-title {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.empty-state .empty-desc {
+  max-width: 42ch;
+  line-height: 1.55;
+}
+
+.error-state {
+  padding: 12px;
+  border: 1px solid var(--crit);
+  border-radius: 8px;
+  background: rgba(207, 34, 46, 0.06);
+  color: var(--crit);
+  font-size: 13px;
+}
+:root[data-theme="dark"] .error-state {
+  background: rgba(248, 81, 73, 0.08);
+}
+
+.warn-box {
+  padding: 10px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: rgba(154, 103, 0, 0.06);
+  color: var(--warn);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .warn-box {
+  background: rgba(210, 153, 34, 0.08);
+}
+
+/* The good-news counterpart: this message will land immediately. */
+.info-box {
+  padding: 10px 12px;
+  border: 1px solid var(--good);
+  border-radius: 8px;
+  background: rgba(26, 127, 55, 0.06);
+  color: var(--good);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .info-box {
+  background: rgba(63, 185, 80, 0.08);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Skeletons: a hairline shimmer, never fake content. */
+@keyframes skeleton {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+.skel {
+  height: 11px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+:root[data-theme="dark"] .skel {
+  background: var(--surface-2);
+}
+.skel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ===== Modal ===== */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.modal-body {
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 15px;
+  border-top: 1px solid var(--border);
+}
+.modal-foot .right {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* Confirm dialog: narrower than an editor modal, and centred even on a phone —
+   a question this short should not arrive as a full-width sheet. */
+.confirm {
+  max-width: 400px;
+}
+.confirm .modal-body {
+  padding-top: 13px;
+  padding-bottom: 3px;
+}
+.confirm-glyph {
+  color: var(--crit);
+  flex: none;
+}
+
+@media (max-width: 1000px) {
+  .modal-scrim.confirm-scrim {
+    align-items: center;
+    padding: 20px;
+  }
+  .modal.confirm {
+    border-radius: 10px;
+  }
+}
+
+.check-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.check-row:hover {
+  background: var(--surface-2);
+}
+.check-row input {
+  accent-color: var(--accent);
+}
+
+/* ===== Agent cards =====
+   A fixed-height card with a pinned header and a scrolling body. An agent
+   holding twenty files should not produce a card twice the height of one
+   holding two, and a list must never end mid-row with no sign there is more. */
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-card {
+  display: flex;
+  flex-direction: column;
+  height: 340px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+  position: relative;
+}
+/* A leading hairline carries presence without another coloured dot. */
+.agent-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  border-radius: 10px 0 0 10px;
+  background: var(--border-strong);
+}
+.agent-card.active::before {
+  background: var(--good);
+}
+.agent-card.idle::before {
+  background: var(--warn);
+  opacity: 0.7;
+}
+
+.agent-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 10px 15px;
+  flex: none;
+}
+.agent-card-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.agent-card-tool {
+  font-size: 11px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.agent-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 15px 12px;
+  flex: none;
+}
+.agent-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.agent-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.agent-stat {
+  background: var(--surface);
+  padding: 9px 15px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.agent-stat-val {
+  font-size: 16px;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.agent-stat-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The one scroll owner in the card. */
+.agent-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.agent-section + .agent-section {
+  border-top: 1px solid var(--border);
+}
+/* Sticky so you always know which list you are scrolling through. */
+.agent-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  background: var(--surface-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.agent-section-head .count {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.agent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 15px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+  font-size: 12.5px;
+}
+.agent-row:last-child {
+  border-bottom: none;
+}
+.agent-row-main {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-dim);
+}
+.agent-row-meta {
+  flex: none;
+  font-size: 11px;
+}
+
+/* Truncate a path from the left: the filename identifies it, so the directory
+   is what should disappear. The two halves are separate elements — the
+   directory shrinks and ellipsises, the filename never does. */
+.agent-path {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  overflow: hidden;
+}
+.agent-path-dir {
+  color: var(--text-faint);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-path-file {
+  flex: none;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+@media (max-width: 560px) {
+  .agent-grid {
+    grid-template-columns: 1fr;
+  }
+  .agent-card {
+    height: 300px;
+  }
+}
+
+/* ===== Agent room ===== */
+
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+.msg {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 13px 15px;
+  position: relative;
+  overflow: hidden;
+}
+/* An unanswered question earns a hairline on the leading edge — enough to find
+   while scanning, without a full coloured outline shouting on a black page. */
+.msg.unanswered::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--warn);
+  opacity: 0.75;
+  /* Rounded on its own, so the card can drop overflow:hidden while a mention
+     dropdown is open without this strip escaping the corner. */
+  border-radius: 10px 0 0 10px;
+}
+
+.msg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.msg-time {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  flex: none;
+}
+.msg-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.msg-replies {
+  margin: 12px 0 0 6px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.msg-reply .msg-head {
+  margin-bottom: 5px;
+}
+.msg-reply .msg-body {
+  font-size: 12.5px;
+}
+
+/* ===== Docs =====
+   A second, narrower nav beside the content — the same idea as the main rail,
+   one level in. The content panel owns its own scrolling so the section nav
+   stays put while you read. */
+
+/* Fills the remaining height of .content so the reading pane, not the page,
+   is what scrolls. */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  gap: 18px;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.docs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+.docs-nav-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+  border: 1px solid transparent;
+  transition:
+    background 0.1s,
+    color 0.1s;
+}
+.docs-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.docs-nav-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
+/* Contents rail: H2 groups that expand to their H3s. The caret is its own hit
+   target so expanding a group does not also jump the page. */
+.docs-toc {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.docs-toc-group {
+  display: flex;
+  flex-direction: column;
+}
+.docs-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.45;
+  transition:
+    color 0.1s,
+    background 0.1s;
+  min-width: 0;
+}
+.docs-toc-item:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.docs-toc-item.current {
+  color: var(--text);
+  font-weight: 500;
+}
+.docs-toc-item.sub {
+  font-size: 11.5px;
+  padding-left: 8px;
+}
+/* Keeps childless entries aligned with ones that have a caret. */
+.docs-toc-spacer {
+  width: 13px;
+  flex: none;
+}
+.docs-toc-children {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+}
+.docs-toc .tree-caret {
+  width: 13px;
+  height: 13px;
+  margin-left: 0;
+}
+
+.docs-panel {
+  min-height: 0;
+  /* A flex child will not shrink below its content height without this, which
+     is what stops .docs-scroll from ever being scrollable. */
+  overflow: hidden;
+}
+.docs-panel > .panel-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.docs-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+/* Prose is capped for readability, but tables and code blocks take the full
+   width — squeezing a seven-column table into 74ch helps nobody. */
+.docs-body {
+  padding: 22px 26px 48px;
+}
+.docs-md > .docs-p,
+.docs-md > .docs-list,
+.docs-md > .docs-quote,
+.docs-md > .docs-h2,
+.docs-md > .docs-h3,
+.docs-md > .docs-h4 {
+  max-width: 78ch;
+}
+
+/* Markdown typography. Generous line height and a capped measure — these pages
+   are meant to be read, not scanned. */
+.docs-md {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+.docs-p {
+  margin: 0 0 14px;
+}
+.docs-md > *:first-child {
+  margin-top: 0;
+}
+
+.docs-h2 {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 30px 0 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 12px;
+}
+.docs-h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 22px 0 8px;
+  scroll-margin-top: 12px;
+}
+.docs-h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 18px 0 6px;
+  scroll-margin-top: 12px;
+}
+
+.docs-list {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+.docs-list li {
+  margin-bottom: 5px;
+}
+.docs-list li.nested {
+  margin-left: 16px;
+  list-style-type: circle;
+}
+
+.docs-md code {
+  background: var(--surface-2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 12px;
+  color: var(--text);
+}
+.docs-md a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.docs-md a:hover {
+  text-decoration: underline;
+}
+.docs-md b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.docs-quote {
+  margin: 0 0 14px;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-faint);
+}
+
+.docs-hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 26px 0;
+}
+
+.docs-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+.docs-table {
+  border-collapse: collapse;
+  font-size: 12.5px;
+  width: 100%;
+}
+.docs-table th,
+.docs-table td {
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+  color: var(--text-dim);
+  vertical-align: top;
+}
+.docs-table th {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.docs-table code {
+  white-space: nowrap;
+}
+
+/* ===== Code blocks ===== */
+
+.code-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+  margin: 0 0 16px;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 11px;
+}
+.code-body {
+  padding: 13px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  /* Wrap rather than scroll: prose-like blocks (the agent contract, log
+     output) read badly when the right-hand words are hidden. Indentation is
+     preserved, and long unbroken tokens still get a scrollbar. */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  margin: 0;
+  tab-size: 2;
+}
+.copy-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: var(--bg);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    color 0.1s,
+    border-color 0.1s;
+}
+.copy-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* ===== Utilities ===== */
+
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "liga" 0;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dim {
+  color: var(--text-faint);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.scroll-x {
+  overflow-x: auto;
+}
+
+/* ===== Responsive =====
+   enowx-rag hides the sidebar outright below 1000px. succubus keeps it as a
+   drawer instead, because losing project and agent switching on a phone would
+   defeat the point of checking in from one. */
+
+@media (max-width: 1180px) {
+  .board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .span-3 {
+    grid-column: span 2;
+  }
+  /* Two columns: the plan no longer has two short panels beside it to balance
+     against, so it drops back to a single row. */
+  .cols .panel.tall {
+    grid-row: auto;
+  }
+  .cols.rows-sm {
+    grid-auto-rows: 236px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 264px;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 45;
+  }
+
+  .menu-btn {
+    display: grid;
+  }
+
+  .content {
+    padding: 16px;
+    gap: 14px;
+  }
+  .topbar {
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .crumb .hide-sm {
+    display: none;
+  }
+
+  /* The board scrolls sideways rather than squashing five columns. */
+  .board {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    margin: 0 -16px;
+    padding: 0 16px 6px;
+    gap: 10px;
+  }
+  .board-col {
+    width: 78vw;
+    flex: none;
+    scroll-snap-align: start;
+  }
+
+  /* Docs: the section nav becomes a scrolling strip above the content, and
+     the on-page contents rail is dropped — it competes with the text. */
+  .docs-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .docs-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 2px;
+    flex: none;
+  }
+  .docs-nav-item {
+    white-space: nowrap;
+    flex: none;
+  }
+  .docs-nav .nav-label,
+  .docs-toc {
+    display: none;
+  }
+  .docs-body {
+    padding: 16px 16px 32px;
+  }
+  /* Single column: the page scrolls normally again, so the reading pane must
+     not trap the scroll inside a short box. */
+  .content.content-docs {
+    overflow-y: auto;
+  }
+  .docs-layout {
+    flex: none;
+  }
+  .docs-panel,
+  .docs-scroll {
+    overflow: visible;
+    height: auto;
+  }
+
+  .cols {
+    grid-template-columns: 1fr;
+  }
+  .span-2,
+  .span-3 {
+    grid-column: auto;
+  }
+  /* Single column: fixed row heights would crop content with nothing to gain,
+     so every panel sizes to its own content again. */
+  .cols.rows-sm,
+  .cols.rows-md {
+    grid-auto-rows: auto;
+  }
+  .cols[class*="rows-"] .panel {
+    height: auto;
+  }
+  .cols[class*="rows-"] .panel-body {
+    overflow-y: visible;
+  }
+  .cols .panel.tall {
+    grid-row: auto;
+  }
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+  .modal-scrim {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal {
+    max-width: none;
+    border-radius: 10px 10px 0 0;
+    max-height: 92vh;
+  }
+}
+
+@media (max-width: 560px) {
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kpi .val {
+    font-size: 21px;
+  }
+  .page-head h1 {
+    font-size: 18px;
+  }
+  .board-col {
+    width: 86vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse,
+  .spin,
+  .skel {
+    animation: none;
+  }
+  .sidebar {
+    transition: none;
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook SessionStart",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook UserPromptSubmit",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook PreToolUse",
+            "timeout": 5
+          }
+        ],
+        "matcher": "Edit|Write"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook PostToolUse",
+            "timeout": 5
+          }
+        ],
+        "matcher": "Edit|Write"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook SessionEnd",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

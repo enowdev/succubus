@@ -1,0 +1,14 @@
+{
+  "mcp": {
+    "succubus": {
+      "type": "local",
+      "command": [
+        "/ABSOLUTE/PATH/TO/succubus",
+        "mcp",
+        "--tool",
+        "opencode"
+      ],
+      "enabled": true
+    }
+  }
+}

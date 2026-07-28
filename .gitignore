@@ -1,0 +1,26 @@
+bin/
+# Release artifacts only — anchored so it cannot swallow web/dist, whose
+# placeholder index.html must stay committed for //go:embed to work.
+/dist/
+*.db
+*.db-shm
+*.db-wal
+
+node_modules/
+web/tsconfig.tsbuildinfo
+
+# web/dist is embedded into the binary, so the placeholder index.html is
+# committed. Everything a real build emits is not.
+web/dist/*
+!web/dist/index.html
+
+# Per-session identity cache written by succubus itself.
+.succubus/
+
+# Written by `succubus init`, and machine-specific: it holds the absolute path
+# to this checkout's binary. Committing one person's copy hands everyone else a
+# path that does not exist on their machine.
+.mcp.json
+
+.DS_Store
+*.log

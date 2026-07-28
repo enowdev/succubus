@@ -1,0 +1,11 @@
+# Merge into ~/.codex/config.toml
+#
+# Hooks are experimental in Codex CLI, gated behind this feature flag, and are
+# not available on Windows. MCP works regardless.
+
+[features]
+hooks = true
+
+[mcp_servers.succubus]
+command = "/ABSOLUTE/PATH/TO/succubus"
+args = ["mcp", "--tool", "codex"]

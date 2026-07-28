@@ -1,0 +1,85 @@
+# Builds and publishes the binaries the installers download.
+#
+# Triggered by pushing a version tag:
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# One job, no matrix: the binaries are pure Go with CGO off, so a single Linux
+# runner cross-compiles every target. A matrix would need six runners and six
+# separate uploads for no benefit.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (must already exist)'
+        required: true
+
+permissions:
+  contents: write   # needed to create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # `git describe` needs the tags
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The dashboard is embedded in the binary, so it has to build first or
+      # //go:embed has nothing to embed.
+      - name: Build the dashboard
+        run: |
+          cd web
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Cross-compile
+        run: make release
+
+      - name: Show what will be published
+        run: ls -lh dist/ && cat dist/checksums.txt
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          # A tag ending in a suffix (v1.0.0-rc1, v1.0.0-beta) should not become
+          # the "latest" release the installers resolve to.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            ## Install
+
+            **macOS / Linux**
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sh
+            ```
+
+            **Windows** (PowerShell)
+            ```powershell
+            irm https://raw.githubusercontent.com/${{ github.repository }}/main/install.ps1 | iex
+            ```
+
+            Then, in any project you want coordinated:
+            ```sh
+            cd /path/to/your/project
+            succubus setup
+            ```
+
+            Verify a download against `checksums.txt` before running it if you
+            fetch a binary manually.

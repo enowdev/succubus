@@ -1,0 +1,69 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook SessionStart --dialect gemini",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook BeforeAgent --dialect gemini",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook BeforeTool --dialect gemini",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook AfterTool --dialect gemini",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/ABSOLUTE/PATH/TO/succubus\" hook SessionEnd --dialect gemini",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "succubus": {
+      "command": "/ABSOLUTE/PATH/TO/succubus",
+      "args": [
+        "mcp",
+        "--tool",
+        "gemini"
+      ]
+    }
+  }
+}

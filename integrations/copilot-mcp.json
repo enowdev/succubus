@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "succubus": {
+      "command": "/ABSOLUTE/PATH/TO/succubus",
+      "args": [
+        "mcp",
+        "--tool",
+        "copilot"
+      ]
+    }
+  }
+}

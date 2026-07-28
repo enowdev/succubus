@@ -1,0 +1,94 @@
+# Runs on every push and pull request.
+#
+# The point of the platform matrix is not the Go tests — those are the same
+# everywhere. It is that succubus has real per-OS code (process liveness via ps
+# vs tasklist, launchd vs systemd vs the registry for autostart), and that code
+# only gets exercised by actually running it on each OS.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Test
+        run: go test ./... -count=1
+
+      # The concurrency guarantee in claims.go is the one thing that must not
+      # regress, and a data race there would not show up as a test failure.
+      - name: Test under the race detector
+        run: go test ./internal/store/... -race -count=1
+
+      - name: Vet
+        run: go vet ./...
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: cd web && bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: cd web && bunx tsc --noEmit
+
+      - name: Build
+        run: cd web && bun run build
+
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      # Confirms every release target still compiles, so a tag push does not
+      # fail after the tag is already public.
+      - name: Cross-compile every target
+        run: make cross
+
+  installers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A syntax error in install.sh only surfaces when someone runs it, and by
+      # then it is on main and being curl-piped.
+      - name: Check install.sh parses
+        run: sh -n install.sh
+
+      - name: Lint install.sh
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          shellcheck --shell=sh install.sh
+
+      - name: Check install.ps1 parses
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./install.ps1), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }
+          Write-Host "install.ps1 parses cleanly"
