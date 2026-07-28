@@ -1928,8 +1928,41 @@
     z-index: 45;
   }
 
+  /* Touch targets.
+
+     44px is the long-standing minimum for hitting something reliably with a
+     finger; below it people miss and hit whatever is next to it. The desktop
+     sizes stay as they are — a mouse is precise, and loosening the sidebar
+     everywhere would cost density for no benefit.
+
+     The hamburger matters most: at 32px it was the one control that opens
+     navigation at all on a phone, and missing it leaves you stuck on the
+     current page. */
   .menu-btn {
     display: grid;
+    width: 44px;
+    height: 44px;
+    /* Pull back the extra width so the icon stays optically aligned with the
+       content edge instead of drifting inward. */
+    margin-left: -6px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    padding: 10px 10px;
+  }
+
+  /* Refresh and the theme toggle.
+
+     Scoped to the topbar because .icon-btn is used inside cards and lists too,
+     and inflating those would push those layouts around for no gain.
+
+     The button itself grows rather than getting an invisible ::after overlay:
+     the real box is what assistive tech, and any audit, can actually see. The
+     icon inside stays the same size, so the topbar looks unchanged. */
+  .topbar > .icon-btn {
+    width: 44px;
+    height: 44px;
   }
 
   .content {

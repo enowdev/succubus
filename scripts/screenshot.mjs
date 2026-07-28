@@ -6,6 +6,12 @@
  * already installed.
  *
  *   node scripts/screenshot.mjs [baseURL] [outDir]
+ *
+ * The viewport is overridable, because the dashboard is meant to be mobile
+ * first and a 1440px capture is exactly the width at which mobile problems are
+ * invisible:
+ *
+ *   SHOT_WIDTH=375 SHOT_HEIGHT=812 node scripts/screenshot.mjs
  */
 import { spawn } from "node:child_process";
 import { mkdir, writeFile, rm } from "node:fs/promises";
@@ -14,8 +20,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 const BASE = process.argv[2] ?? "http://localhost:5273";
 const OUT = process.argv[3] ?? "docs/screenshots";
 const PORT = 9222;
-const WIDTH = 1440;
-const HEIGHT = 900;
+const WIDTH = Number(process.env.SHOT_WIDTH ?? 1440);
+const HEIGHT = Number(process.env.SHOT_HEIGHT ?? 900);
 
 const CHROME =
   process.env.CHROME_PATH ??
