@@ -189,3 +189,30 @@ func TestInstallShIsPortable(t *testing.T) {
 		t.Error("install.sh must run under `set -eu`")
 	}
 }
+
+// TestVersionLdflagTargetsTheRealSymbol guards a failure mode that is invisible
+// at build time.
+//
+// The Makefile shipped `-X main.version=...` while no such variable existed.
+// The linker does not complain about an -X flag naming a symbol that is not
+// there — it silently drops it — so every release binary reported the hardcoded
+// string instead of its tag, and the CLI and the MCP handshake disagreed about
+// what was running.
+func TestVersionLdflagTargetsTheRealSymbol(t *testing.T) {
+	makefile := readRepoFile(t, "Makefile")
+
+	const want = "-X github.com/enowdev/succubus/internal/mode.Version="
+	if !strings.Contains(makefile, want) {
+		t.Errorf("LDFLAGS does not set %s; a version injected into a symbol that "+
+			"does not exist is dropped without an error", want)
+	}
+	if strings.Contains(makefile, "-X main.version=") {
+		t.Error("LDFLAGS still targets main.version, which does not exist")
+	}
+
+	// The default must not name a release: a binary built from an arbitrary
+	// checkout should not claim to be a tagged version.
+	if !strings.Contains(readRepoFile(t, "internal/mode/version.go"), `Version = "dev"`) {
+		t.Error("the default Version should be \"dev\", not a release number")
+	}
+}

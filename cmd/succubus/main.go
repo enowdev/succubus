@@ -10,6 +10,10 @@ import (
 	"github.com/enowdev/succubus/web"
 )
 
+// version comes from internal/mode so the CLI and the MCP handshake cannot
+// disagree about what is running. The Makefile sets it at link time.
+var version = mode.Version
+
 const usage = `succubus — shared plan, tasks, and file claims for multiple AI coding agents
 
 Getting started:
@@ -101,7 +105,7 @@ func main() {
 		fmt.Print(usage)
 		return
 	case "version", "--version":
-		fmt.Println("succubus 0.1.0")
+		fmt.Println("succubus " + version)
 		return
 	default:
 		err = mode.CLI(cmd, args)

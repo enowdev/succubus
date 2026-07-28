@@ -56,12 +56,12 @@ var knownTools = []Tool{
 	{
 		ID: "cursor", Name: "Cursor CLI",
 		HasMCP: true,
-		Notes: "the CLI fires almost no hook events, so this is MCP only",
+		Notes:  "the CLI fires almost no hook events, so this is MCP only",
 	},
 	{
 		ID: "copilot", Name: "GitHub Copilot CLI",
 		HasMCP: true,
-		Notes: "no hook system; MCP and the skill only",
+		Notes:  "no hook system; MCP and the skill only",
 	},
 	{
 		ID: "aider", Name: "Aider",

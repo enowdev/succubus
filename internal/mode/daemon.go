@@ -85,7 +85,7 @@ func Daemon(args []string) error {
 	}
 
 	httpSrv := &http.Server{
-		Addr:querySafe(*addr),
+		Addr:              querySafe(*addr),
 		Handler:           srv,
 		ReadHeaderTimeout: 10 * time.Second,
 		// No WriteTimeout: SSE streams are long-lived and the handler clears

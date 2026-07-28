@@ -238,11 +238,11 @@ func TestContextTellsAgentsWhatToWrite(t *testing.T) {
 	decodeInto(t, w, &ctx)
 
 	for _, want := range []string{
-		reg.Agent.Name,          // it must know who it is
-		"succubus_plan_create",  // and be told to plan
-		"succubus_task_create",  // and to record tasks
-		"succubus_claim_files",  // and to claim before editing
-		"succubus_ask",          // and to ask rather than guess
+		reg.Agent.Name,         // it must know who it is
+		"succubus_plan_create", // and be told to plan
+		"succubus_task_create", // and to record tasks
+		"succubus_claim_files", // and to claim before editing
+		"succubus_ask",         // and to ask rather than guess
 	} {
 		if !strings.Contains(ctx.Text, want) {
 			t.Errorf("injected context is missing %q:\n%s", want, ctx.Text)

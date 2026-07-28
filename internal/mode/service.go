@@ -151,4 +151,3 @@ func reportStatus(installed bool, where string) error {
 	}
 	return nil
 }
-

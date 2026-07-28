@@ -423,7 +423,6 @@ func initCursor(root, bin string, dry bool) error {
 	})
 }
 
-
 // initAgentsMD appends the contract to AGENTS.md, replacing a previous block.
 // AGENTS.md is the widest-reach surface: tools with no hook support still read it.
 func initAgentsMD(root string, dry bool) error {

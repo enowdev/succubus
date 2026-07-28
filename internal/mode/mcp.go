@@ -113,7 +113,7 @@ func (s *mcpServer) handleLine(line []byte) {
 					"claude/channel": map[string]any{},
 				},
 			},
-			"serverInfo":      map[string]any{"name": "succubus", "version": "0.1.0"},
+			"serverInfo": map[string]any{"name": "succubus", "version": Version},
 			"instructions": "succubus coordinates multiple AI agents working on one project. " +
 				"Call succubus_register first to adopt your identity, then succubus_context " +
 				"to see the plan, your tasks, and files locked by other agents. " +
@@ -612,8 +612,12 @@ func obj(props map[string]any, required ...string) map[string]any {
 	return m
 }
 
-func strProp(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
-func numProp(desc string) map[string]any { return map[string]any{"type": "number", "description": desc} }
+func strProp(desc string) map[string]any {
+	return map[string]any{"type": "string", "description": desc}
+}
+func numProp(desc string) map[string]any {
+	return map[string]any{"type": "number", "description": desc}
+}
 func boolProp(desc string) map[string]any {
 	return map[string]any{"type": "boolean", "description": desc}
 }
@@ -679,7 +683,7 @@ func toolSchemas() []map[string]any {
 			"name":        "succubus_task_list",
 			"description": "List tasks, optionally filtered by status, assignee, or plan.",
 			"inputSchema": obj(map[string]any{
-				"status": strProp("todo, in_progress, blocked, review, done, cancelled"),
+				"status":   strProp("todo, in_progress, blocked, review, done, cancelled"),
 				"assignee": strProp("agent name"), "plan_id": strProp("plan id"),
 			}),
 		},
@@ -698,7 +702,7 @@ func toolSchemas() []map[string]any {
 			"description": "Update a task's title, body, status, priority, or assignee.",
 			"inputSchema": obj(map[string]any{
 				"id": strProp("task id"), "title": strProp("new title"), "body_md": strProp("new body"),
-				"status": strProp("todo, in_progress, blocked, review, done, cancelled"),
+				"status":        strProp("todo, in_progress, blocked, review, done, cancelled"),
 				"assignee_name": strProp("agent name"), "priority": numProp("1-3"),
 			}, "id"),
 		},

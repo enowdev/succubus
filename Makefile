@@ -2,7 +2,7 @@ BIN      := bin/succubus
 PKG      := ./cmd/succubus
 WEB      := web
 VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS  := -s -w -X main.version=$(VERSION)
+LDFLAGS  := -s -w -X github.com/enowdev/succubus/internal/mode.Version=$(VERSION)
 
 .DEFAULT_GOAL := help
 

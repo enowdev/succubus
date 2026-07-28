@@ -37,6 +37,18 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # Only on Linux: gofmt's output is identical everywhere, so running it
+      # three times would just be three chances to hit a line-ending difference.
+      - name: Check formatting
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          unformatted=$(gofmt -l cmd internal)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
   web:
     runs-on: ubuntu-latest
     steps:
