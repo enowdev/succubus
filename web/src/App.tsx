@@ -4,6 +4,7 @@ import { Sidebar, type Page } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { useTheme } from "./lib/useTheme";
 import { useProjectState } from "./lib/useProjectState";
+import { useRoute, routeToPath } from "./lib/useRoute";
 import { api } from "./lib/api";
 import type { ProjectSummary } from "./lib/types";
 import { Overview } from "./pages/Overview";
@@ -23,9 +24,19 @@ export default function App() {
   const confirm = useConfirm();
   const [boot, setBoot] = useState<Boot>("checking");
   const [tree, setTree] = useState<ProjectSummary[]>([]);
-  const [activeProject, setActiveProject] = useState<string | null>(null);
-  const [page, setPage] = useState<Page>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // The visible project and page live in the URL, so the board can be
+  // bookmarked, a link to the room can be sent to someone else, and Back goes
+  // back a page instead of leaving the app.
+  const { route, navigate } = useRoute();
+  const activeProject = route.projectId;
+  const page = route.page;
+
+  const setPage = useCallback(
+    (p: Page) => navigate({ page: p }),
+    [navigate],
+  );
 
   // The tree is owned here rather than in the sidebar: the shell needs it to
   // decide what to render before any page mounts. One request covers every
@@ -34,7 +45,6 @@ export default function App() {
     try {
       const list = await api.overview();
       setTree(list);
-      setActiveProject((cur) => cur ?? (list.length > 0 ? list[0].id : null));
       setBoot(list.length === 0 ? "empty" : "ready");
     } catch {
       setBoot("offline");
@@ -44,6 +54,26 @@ export default function App() {
   useEffect(() => {
     loadTree();
   }, [loadTree]);
+
+  // Resolve "/" to a real project, and rescue a URL naming one that no longer
+  // exists — a stale bookmark, or a project someone deleted. Both are
+  // corrections the user did not ask for, so they replace the history entry
+  // rather than leaving a Back stop nobody navigated to.
+  useEffect(() => {
+    if (tree.length === 0) return;
+    if (page === "docs") return; // docs belongs to no project
+    const known = activeProject && tree.some((p) => p.id === activeProject);
+    if (!known) navigate({ projectId: tree[0].id }, true);
+  }, [tree, activeProject, page, navigate]);
+
+  // An unrecognised page renders the overview, so the address bar should say
+  // so. Leaving /p/<id>/nosuchpage showing means a reload, a copied link, or a
+  // bookmark all preserve a URL that does not describe what is on screen.
+  useEffect(() => {
+    if (location.pathname !== routeToPath(route)) {
+      history.replaceState({}, "", routeToPath(route));
+    }
+  }, [route]);
 
   const state = useProjectState(activeProject ?? undefined);
 
@@ -55,10 +85,12 @@ export default function App() {
     if (kind === "agent" || kind === "claim" || kind === "task") loadTree();
   }, [state.lastEventType, loadTree]);
 
-  const selectProject = useCallback((id: string) => {
-    setActiveProject(id);
-    setPage("overview");
-  }, []);
+  // Switching project lands on its overview: the page you were reading belongs
+  // to the project you left.
+  const selectProject = useCallback(
+    (id: string) => navigate({ projectId: id, page: "overview" }),
+    [navigate],
+  );
 
   const refreshAll = useCallback(() => {
     loadTree();
@@ -81,11 +113,12 @@ export default function App() {
       });
       if (!ok) return;
       await api.deleteProject(p.id);
-      // Fall back to whatever project is left, if we just deleted the open one.
-      setActiveProject((cur) => (cur === p.id ? null : cur));
+      // If the open project is the one that just went away, clear it: the
+      // effect above then lands on whatever is left.
+      if (activeProject === p.id) navigate({ projectId: null }, true);
       loadTree();
     },
-    [confirm, loadTree],
+    [confirm, loadTree, activeProject, navigate],
   );
 
   if (boot === "checking") {

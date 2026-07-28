@@ -49,7 +49,12 @@ check: test
 	go vet ./...
 	GOOS=windows go vet ./...
 	cd $(WEB) && bunx tsc --noEmit
+	cd $(WEB) && bun test
 	@$(MAKE) --no-print-directory cross
+
+## audit-mobile: measure tap targets and overflow against a running dev server
+audit-mobile:
+	node scripts/audit-mobile.mjs
 
 ## install: build and copy the binary onto your PATH
 install: build
@@ -123,4 +128,4 @@ clean:
 	git checkout -- $(WEB)/dist 2>/dev/null || true
 
 .PHONY: help build build-go web-build dev dev-daemon dev-web test test-race \
-        check install seed demo screenshots release cross clean
+        check install seed demo screenshots audit-mobile release checksums cross clean

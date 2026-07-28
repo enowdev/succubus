@@ -63,6 +63,9 @@ jobs:
       - name: Typecheck
         run: cd web && bunx tsc --noEmit
 
+      - name: Test
+        run: cd web && bun test
+
       - name: Build
         run: cd web && bun run build
 

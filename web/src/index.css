@@ -1965,6 +1965,45 @@
     height: 44px;
   }
 
+  /* Row and panel actions — "Mark resolved", "Force release", "Delete
+     message", "New task". These are the destructive and state-changing ones,
+     which is exactly where a mis-tap costs something.
+
+     Only the height grows: these buttons already sit in rows with their own
+     spacing, and widening them would reflow the layouts around them. */
+  .btn,
+  .btn.sm {
+    min-height: 44px;
+    /* Icon-only buttons ("Force release", "Delete plan") are as narrow as they
+       are tall, so height alone does not make them hittable. */
+    min-width: 44px;
+  }
+
+  /* The caret that expands a project's agents is inside the drawer, where it
+     sits next to a row that navigates. At 14px a mis-tap switches project
+     instead of expanding it. */
+  .tree-caret {
+    width: 30px;
+    height: 30px;
+    margin-left: -8px;
+  }
+
+  /* The docs section switcher is a horizontal strip, so its items sit right
+     next to each other — the case where an undersized target does not just
+     miss, it hits the neighbour. */
+  .docs-nav-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* The copy button sits on top of the block it copies, so it stays visually
+     small — only its touch area grows. */
+  .copy-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .content {
     padding: 16px;
     gap: 14px;

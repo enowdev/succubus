@@ -87,13 +87,25 @@ const PROBE = `(() => {
   const vw = document.documentElement.clientWidth;
   const out = { vw, scrollW: document.documentElement.scrollWidth, overflow: [], smallTaps: [], errors: [] };
 
-  // Elements sticking out past the right edge. Report the widest few, and only
-  // ones the user can actually see.
+  // Something wider than the viewport is only a problem if it makes the *page*
+  // scroll sideways. A wide table inside its own overflow-x:auto wrapper is the
+  // intended design — the wrapper scrolls, the page does not — so walking up
+  // for a scrolling ancestor is what separates a real defect from a deliberate
+  // one.
+  const containedByScroller = (el) => {
+    for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+      const ox = getComputedStyle(p).overflowX;
+      if (ox === 'auto' || ox === 'scroll' || ox === 'hidden') return true;
+    }
+    return false;
+  };
+
   for (const el of document.querySelectorAll('body *')) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+    if (containedByScroller(el)) continue;
     if (r.right > vw + 1) {
       out.overflow.push({
         tag: el.tagName.toLowerCase(),
