@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"errors"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -23,11 +22,18 @@ func NormalizePath(root, p string) string {
 		return ""
 	}
 	p = strings.ReplaceAll(p, "\\", "/")
-	if root != "" && filepath.IsAbs(p) {
-		if rel, err := filepath.Rel(root, filepath.FromSlash(p)); err == nil && !strings.HasPrefix(rel, "..") {
-			p = filepath.ToSlash(rel)
+
+	if root != "" && isAbsAnyOS(p) {
+		// Compare in slash form rather than via filepath.Rel, whose behaviour is
+		// OS-specific. The daemon may be running on a different OS from the
+		// agent that reported the path — and a path is either inside the project
+		// root or not, regardless of which OS is asking.
+		r := strings.TrimSuffix(strings.ReplaceAll(root, "\\", "/"), "/")
+		if rel, ok := trimRootPrefix(p, r); ok {
+			p = rel
 		}
 	}
+
 	p = strings.TrimPrefix(p, "./")
 	p = strings.Trim(p, "/")
 	// darwin and windows have case-insensitive filesystems, so two agents can
@@ -36,6 +42,46 @@ func NormalizePath(root, p string) string {
 		p = strings.ToLower(p)
 	}
 	return p
+}
+
+// isAbsAnyOS reports whether p is absolute under *either* convention.
+//
+// filepath.IsAbs answers only for the OS it was compiled for, so on Windows it
+// calls "/tmp/proj/src/a.go" relative and the root-stripping below is skipped —
+// the claim is then stored under a different key than the same file claimed by
+// an agent on Linux, and the two agents stop seeing each other's locks.
+func isAbsAnyOS(p string) bool {
+	if strings.HasPrefix(p, "/") { // unix, and windows paths already slash-converted
+		return true
+	}
+	// Drive-letter form: C:/... or C:
+	if len(p) >= 2 && p[1] == ':' {
+		c := p[0]
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	}
+	return strings.HasPrefix(p, "//") // UNC share
+}
+
+// trimRootPrefix removes root from p when p is genuinely inside it, matching
+// whole segments so that /tmp/project-two is not treated as living under
+// /tmp/project.
+func trimRootPrefix(p, root string) (string, bool) {
+	if root == "" {
+		return p, false
+	}
+	cmpP, cmpRoot := p, root
+	// The filesystems where the case of a path does not distinguish two files
+	// are the ones where an agent may report it differently.
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		cmpP, cmpRoot = strings.ToLower(p), strings.ToLower(root)
+	}
+	if cmpP == cmpRoot {
+		return "", true
+	}
+	if strings.HasPrefix(cmpP, cmpRoot+"/") {
+		return p[len(root)+1:], true
+	}
+	return p, false
 }
 
 // claimUpsert is the heart of succubus.

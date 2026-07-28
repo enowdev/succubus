@@ -2,6 +2,8 @@ package store
 
 import (
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -250,16 +252,70 @@ func TestClaimOrderingNoDeadlock(t *testing.T) {
 func TestNormalizePath(t *testing.T) {
 	root := "/tmp/proj"
 	cases := map[string]string{
-		"./src/main.go":       "src/main.go",
-		"src\\main.go":        "src/main.go",
-		"/tmp/proj/src/a.go":  "src/a.go",
-		"  src/b.go  ":        "src/b.go",
-		"/src/c.go/":          "src/c.go",
+		"./src/main.go":      "src/main.go",
+		"src\\main.go":       "src/main.go",
+		"/tmp/proj/src/a.go": "src/a.go",
+		"  src/b.go  ":       "src/b.go",
+		"/src/c.go/":         "src/c.go",
 	}
 	for in, want := range cases {
 		if got := NormalizePath(root, in); got != want {
 			t.Errorf("NormalizePath(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestNormalizePathIsOSIndependent is a regression test for a bug CI found on
+// Windows and no amount of local testing on macOS would have.
+//
+// The old implementation used filepath.IsAbs, which answers only for the OS it
+// was compiled for. On Windows it called "/tmp/proj/src/a.go" *relative*, so the
+// project root was never stripped and the claim was stored under a different key
+// than the one an agent on Linux would produce for the same file — two agents
+// editing one file, each believing they held it.
+//
+// Normalization must depend on the path, not on which OS the daemon runs on.
+func TestNormalizePathIsOSIndependent(t *testing.T) {
+	cases := []struct{ root, in, want string }{
+		// Unix-shaped root and path, which must normalize identically whether
+		// the daemon runs on Linux, macOS, or Windows.
+		{"/tmp/proj", "/tmp/proj/src/a.go", "src/a.go"},
+		{"/tmp/proj", "/tmp/proj/deep/nested/b.go", "deep/nested/b.go"},
+		{"/tmp/proj/", "/tmp/proj/src/a.go", "src/a.go"}, // trailing slash on root
+
+		// Windows-shaped, which likewise must not depend on the host OS.
+		{`C:\work\proj`, `C:\work\proj\src\a.go`, "src/a.go"},
+		{"C:/work/proj", "C:/work/proj/src/a.go", "src/a.go"},
+
+		// Outside the root: left alone rather than mangled into a false match.
+		{"/tmp/proj", "/etc/passwd", "etc/passwd"},
+
+		// The root itself.
+		{"/tmp/proj", "/tmp/proj", ""},
+	}
+
+	for _, c := range cases {
+		want := c.want
+		// The case-insensitive filesystems fold; Linux does not.
+		if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+			want = strings.ToLower(want)
+		}
+		if got := NormalizePath(c.root, c.in); got != want {
+			t.Errorf("NormalizePath(%q, %q) = %q, want %q", c.root, c.in, got, want)
+		}
+	}
+}
+
+// TestNormalizePathRespectsSegmentBoundaries: /tmp/project-two is not inside
+// /tmp/project, and a plain string prefix check would say otherwise — silently
+// filing one project's claims under another.
+func TestNormalizePathRespectsSegmentBoundaries(t *testing.T) {
+	got := NormalizePath("/tmp/project", "/tmp/project-two/src/a.go")
+	if got == "src/a.go" {
+		t.Fatal("/tmp/project-two was treated as living inside /tmp/project")
+	}
+	if !strings.Contains(got, "project-two") {
+		t.Errorf("the path outside the root was mangled: got %q", got)
 	}
 }
 
