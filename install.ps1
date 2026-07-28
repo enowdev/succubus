@@ -95,12 +95,32 @@ Set a version explicitly, or build from source:
 # --- checksum ----------------------------------------------------------------
 # Worth doing: this script puts a downloaded executable on your PATH. A silent
 # mismatch is exactly what you do not want.
+# Fails closed: if the checksum cannot be checked, the install stops rather than
+# quietly proceeding unverified, because "verification silently did not happen"
+# looks identical to "verification passed" in the output. $env:SUCCUBUS_SKIP_VERIFY
+# opts out, which makes it the user's decision and leaves it visible.
+function Deny-Unverified {
+    param($Reason)
+    if ($env:SUCCUBUS_SKIP_VERIFY -eq '1') {
+        Write-Warn "$Reason - continuing because SUCCUBUS_SKIP_VERIFY=1"
+        return
+    }
+    Die @"
+$Reason, so the download cannot be verified.
+
+Refusing to install an unverified binary. Either use a release that publishes
+checksums.txt, or accept the risk explicitly:
+
+  `$env:SUCCUBUS_SKIP_VERIFY = '1'
+"@
+}
+
 function Test-Checksum {
     param($File, $SumsUrl, $Name)
     try {
         $sums = (Invoke-WebRequest -Uri $SumsUrl -UseBasicParsing).Content
     } catch {
-        Write-Warn "no checksums.txt published - skipping verification"
+        Deny-Unverified "this release publishes no checksums.txt"
         return
     }
 
@@ -110,7 +130,7 @@ function Test-Checksum {
         if ($parts.Count -ge 2 -and $parts[-1] -eq $Name) { $want = $parts[0]; break }
     }
     if (-not $want) {
-        Write-Warn "no checksum published for $Name - skipping verification"
+        Deny-Unverified "no checksum is published for $Name"
         return
     }
 

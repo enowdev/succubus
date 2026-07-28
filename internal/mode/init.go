@@ -305,7 +305,12 @@ func initCodex(home, bin string, dry bool) error {
 		appendHook(m, "UserPromptSubmit", hookEntry(bin, "UserPromptSubmit", "", 10), bin)
 		appendHook(m, "PreToolUse", hookEntry(bin, "PreToolUse", "", 5), bin)
 		appendHook(m, "PostToolUse", hookEntry(bin, "PostToolUse", "", 5), bin)
-		appendHook(m, "Stop", hookEntry(bin, "SessionEnd", "", 5), bin)
+		// Stop is the end of a *turn*, not the end of the session. Wiring it to
+		// SessionEnd released every file claim the agent held each time it
+		// stopped talking, mid-session — so a Codex agent kept losing the locks
+		// it was still relying on, and never got the turn-end nudge to answer a
+		// question addressed to it.
+		appendHook(m, "Stop", hookEntry(bin, "Stop", "", 5), bin)
 	})
 }
 

@@ -120,14 +120,34 @@ Set a version explicitly, or build from source:
 # --- checksum ----------------------------------------------------------------
 # Verifying matters here: this script pipes a downloaded binary straight onto
 # your PATH. A silent mismatch is exactly what you do not want.
+#
+# This fails closed. If the checksum cannot be checked — none published, no
+# sha256 tool on the machine — the install stops rather than quietly proceeding
+# unverified, because "verification silently did not happen" looks identical to
+# "verification passed" in the output. Setting SUCCUBUS_SKIP_VERIFY=1 opts out,
+# which makes the decision the user's and leaves it visible in their shell
+# history.
+cannot_verify() {  # cannot_verify <reason>
+  if [ "${SUCCUBUS_SKIP_VERIFY:-0}" = "1" ]; then
+    warn "$1 — continuing because SUCCUBUS_SKIP_VERIFY=1"
+    return 0
+  fi
+  die "$1, so the download cannot be verified.
+
+Refusing to install an unverified binary. Either use a release that publishes
+checksums.txt, install a sha256 tool, or accept the risk explicitly:
+
+  SUCCUBUS_SKIP_VERIFY=1 sh install.sh"
+}
+
 verify_checksum() {  # verify_checksum <file> <sums-file> <name>
   want=$(grep " $3\$" "$2" 2>/dev/null | awk '{print $1}' | head -1)
-  [ -n "$want" ] || { warn "no checksum published for $3 — skipping verification"; return 0; }
+  [ -n "$want" ] || { cannot_verify "no checksum is published for $3"; return 0; }
 
   if have sha256sum;   then got=$(sha256sum "$1" | awk '{print $1}')
   elif have shasum;    then got=$(shasum -a 256 "$1" | awk '{print $1}')
   elif have sha256;    then got=$(sha256 -q "$1")
-  else warn "no sha256 tool found — skipping verification"; return 0
+  else cannot_verify "no sha256 tool is available on this machine"; return 0
   fi
 
   [ "$got" = "$want" ] || die "checksum mismatch for $3
@@ -183,7 +203,7 @@ If this platform has no published binary yet, build from source:
 if fetch "$BASE/checksums.txt" "$TMP/checksums.txt" 2>/dev/null; then
   verify_checksum "$TMP/$BIN" "$TMP/checksums.txt" "$ASSET"
 else
-  warn "no checksums.txt published — skipping verification"
+  cannot_verify "this release publishes no checksums.txt"
 fi
 
 chmod +x "$TMP/$BIN"

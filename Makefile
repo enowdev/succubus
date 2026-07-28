@@ -85,7 +85,8 @@ release: web-build
 	@for target in \
 		darwin/amd64 darwin/arm64 \
 		linux/amd64 linux/arm64 \
-		windows/amd64 windows/arm64; do \
+		windows/amd64 windows/arm64 \
+		freebsd/amd64; do \
 		os=$${target%/*}; arch=$${target#*/}; \
 		ext=""; [ "$$os" = "windows" ] && ext=".exe"; \
 		out="dist/succubus-$(VERSION)-$$os-$$arch$$ext"; \
@@ -94,7 +95,7 @@ release: web-build
 			go build -ldflags '$(LDFLAGS)' -o "$$out" $(PKG) || exit 1; \
 	done
 	@$(MAKE) --no-print-directory checksums
-	@echo "built $(VERSION) for 6 platforms"
+	@echo "built $(VERSION) for 7 platforms"
 
 ## checksums: write dist/checksums.txt (the installers verify against this)
 checksums:

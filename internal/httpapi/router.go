@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"mime"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -46,7 +49,97 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	if err := s.checkCrossOriginWrite(r); err != nil {
+		writeErr(w, http.StatusForbidden, err)
+		return
+	}
+
 	s.Mux.ServeHTTP(w, r)
+}
+
+// checkCrossOriginWrite refuses writes driven by a web page on another origin.
+//
+// Binding to loopback is not the protection it appears to be. Any page the user
+// visits can POST to 127.0.0.1, and a POST with a "simple" content type
+// (text/plain, form-encoded) is sent *without* a CORS preflight — so the browser
+// never asks permission, and the write lands. The attacker cannot read the
+// reply, which makes this easy to miss, but succubus writes are worth making
+// blind: a forged room message is injected into agent context by the hooks, so
+// this is a path from any visited web page into what the user's coding agents
+// are told to do.
+//
+// The rule: a request carrying an Origin that is not ours cannot write. Hooks,
+// the CLI, MCP and curl send no Origin at all and are unaffected — this costs
+// nothing for the clients that matter and closes the browser path entirely.
+func (s *Server) checkCrossOriginWrite(r *http.Request) error {
+	switch r.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return nil // safe methods
+	}
+
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Not a browser-initiated request. Hooks, CLI, MCP, curl.
+		return nil
+	}
+	if sameOrigin(origin, r.Host) {
+		return nil
+	}
+	// The Vite dev server runs on its own port, so it is legitimately a
+	// different origin. Trust it only under --dev, and only when it is on
+	// loopback — a dev flag should widen what the developer's own machine can
+	// do, not what the whole internet can.
+	if s.Dev && isLoopbackOrigin(origin) {
+		return nil
+	}
+	return fmt.Errorf("cross-origin write from %s refused", origin)
+}
+
+// isLoopbackOrigin reports whether an Origin names this machine on any port.
+func isLoopbackOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	h, _ := splitHostPort(u.Host)
+	return isLoopbackName(h)
+}
+
+// sameOrigin reports whether an Origin header names this daemon.
+//
+// Compared by host:port. The scheme is not checked because the daemon serves
+// plain HTTP on loopback, so a page served by the daemon itself always arrives
+// as http://<host>.
+func sameOrigin(origin, host string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	if strings.EqualFold(u.Host, host) {
+		return true
+	}
+	// 127.0.0.1 and localhost are the same daemon, and the dashboard may be
+	// reached by either name.
+	oh, op := splitHostPort(u.Host)
+	hh, hp := splitHostPort(host)
+	return op == hp && isLoopbackName(oh) && isLoopbackName(hh)
+}
+
+func splitHostPort(hp string) (host, port string) {
+	if h, p, err := net.SplitHostPort(hp); err == nil {
+		return h, p
+	}
+	return hp, ""
+}
+
+func isLoopbackName(h string) bool {
+	h = strings.Trim(strings.ToLower(h), "[]")
+	if h == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (s *Server) routes() {
@@ -131,8 +224,32 @@ func fail(w http.ResponseWriter, err error) {
 	writeErr(w, http.StatusInternalServerError, err)
 }
 
+// decode reads a JSON request body, and insists the sender said it was JSON.
+//
+// This is the second half of the cross-origin defence. A browser can only send
+// a request without a CORS preflight when the content type is one of the
+// "simple" ones — text/plain, form-encoded, multipart. Requiring
+// application/json means any browser trying to write here must first ask
+// permission, and a page on another origin will not get it.
+//
+// It is also just correct: a body that claims to be text/plain is not JSON, and
+// parsing it anyway was never intentional.
 func decode(r *http.Request, v any) error {
 	defer r.Body.Close()
+
+	ct := r.Header.Get("Content-Type")
+	if ct == "" {
+		// Tolerated: some clients omit it on a body they always send as JSON,
+		// and an absent header is not the browser bypass this guards against.
+		return json.NewDecoder(r.Body).Decode(v)
+	}
+	mt, _, err := mime.ParseMediaType(ct)
+	if err != nil {
+		return fmt.Errorf("unparseable Content-Type %q", ct)
+	}
+	if mt != "application/json" && !strings.HasSuffix(mt, "+json") {
+		return fmt.Errorf("Content-Type must be application/json, got %q", mt)
+	}
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
