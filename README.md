@@ -10,9 +10,15 @@
 
 <p align="center">
   <img alt="platforms" src="https://img.shields.io/badge/macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-amd64%20%7C%20arm64-F472B6?style=flat-square">
-  <img alt="go" src="https://img.shields.io/badge/Go-1.24%2B-A78BFA?style=flat-square">
+  <img alt="go" src="https://img.shields.io/badge/Go-1.26%2B-A78BFA?style=flat-square">
   <img alt="deps" src="https://img.shields.io/badge/dependencies-1-F472B6?style=flat-square">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-A78BFA?style=flat-square">
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/enowxlabs">
+    <img alt="Join the community on Discord" src="https://img.shields.io/badge/Discord-join%20the%20community-5865F2?style=flat-square&logo=discord&logoColor=white">
+  </a>
 </p>
 
 ---
@@ -334,6 +340,14 @@ make demo     # fill a running daemon with realistic multi-agent data
 
 `scripts/screenshot.mjs` regenerates the images in this README from a running
 dev server.
+
+## Community
+
+Questions, bug reports, and setups that did not work are all welcome in the
+Discord — including which agent tools you are running together, since that is
+what decides where succubus goes next.
+
+**[discord.gg/enowxlabs](https://discord.gg/enowxlabs)**
 
 ## License
 
